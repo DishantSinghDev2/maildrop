@@ -1,11 +1,9 @@
-import { createClient } from 'redis';
+import client from "./redis";
 import bigInt from "big-integer";
 import ratelimit from "./ratelimit";
 import { ParsedMail, simpleParser } from "mailparser";
 import { promisify } from "util";
 
-const REDIS: string = process.env.REDIS || "127.0.0.1:6379";
-const client = createClient({ url: `redis://${REDIS}` });
 const ALTINBOX_MOD: number = parseInt(process.env.ALTINBOX_MOD || "20190422");
 
 const lRangeAsync = promisify(client.lRange).bind(client);
