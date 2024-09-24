@@ -1,0 +1,31 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "Maildrop API Lambda functions",
+  "main": "index.js",
+  "scripts": {
+    "compile": "node_modules/.bin/tsc",
+    "deploy": "node_modules/.bin/serverless deploy",
+    "deploy-prod": "node_modules/.bin/serverless deploy --stage prod",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Mark Beeson <mark@beeson.email>",
+  "repository": {},
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.24",
+    "@types/node": "^11.13.4",
+    "serverless": "^1.40.0",
+    "ts-node": "^8.0.3",
+    "typescript": "^3.4.3"
+  },
+  "dependencies": {
+    "@types/mailparser": "^2.4.0",
+    "@types/redis": "^2.8.12",
+    "aws-sdk": "^2.437.0",
+    "big-integer": "^1.6.43",
+    "mailparser": "^2.6.0",
+    "redis": "^2.8.0",
+    "serverless-terraform-outputs": "0.0.4"
+  }
+}
