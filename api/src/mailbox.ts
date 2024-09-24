@@ -1,41 +1,31 @@
-import Redis, {RedisClient} from "redis";
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
+import { createClient } from 'redis';
 import bigInt from "big-integer";
 import ratelimit from "./ratelimit";
-import {simpleParser} from "mailparser";
+import { ParsedMail, simpleParser } from "mailparser";
+import { promisify } from "util";
 
 const REDIS: string = process.env.REDIS || "127.0.0.1:6379";
-const client: RedisClient = Redis.createClient({url: `redis://${REDIS}`});
+const client = createClient({ url: `redis://${REDIS}` });
 const ALTINBOX_MOD: number = parseInt(process.env.ALTINBOX_MOD || "20190422");
 
+const lRangeAsync = promisify(client.lRange).bind(client);
+
 export function getInbox(mailbox: string): Promise<Array<object>> {
-  return new Promise<Array<any>>((resolve, reject) => {
-    client.lrange(`mailbox:${mailbox}`, 0, -1, (error, results) => {
-      if (!!error) {
-        reject(error);
-      } else {
-        resolve(results.map((result) => JSON.parse(result)));
-      }
-    });
+  return lRangeAsync(`mailbox:${mailbox}`, 0, -1).then((results: any[]) => {
+    return results.map((result: string) => JSON.parse(result));
   });
 }
 
 export function getMessage(mailbox: string, id: string): Promise<object> {
-  return new Promise<object>((resolve, reject) => {
-    client.lrange(`mailbox:${mailbox}:body`, 0, -1, (error, results) => {
-      if (!!error) {
-        reject(error);
-      } else {
-        const message = results.find((result) => JSON.parse(result).id === id) || "{}";
-        resolve(JSON.parse(message));
-      }
-    });
+  return lRangeAsync(`mailbox:${mailbox}:body`, 0, -1).then((results: any[]) => {
+    const message = results.find((result: string) => JSON.parse(result).id === id) || "{}";
+    return JSON.parse(message);
   });
 }
 
 export function parseHtml(message: any): Promise<object> {
   if (!!message.body && !message.html) {
-    return simpleParser(message.body).then((result) => {
+    return simpleParser(message.body).then((result: ParsedMail) => {
       if (!!result.html) {
         return Object.assign({}, message, {
           html: result.html
@@ -53,26 +43,23 @@ export function parseHtml(message: any): Promise<object> {
 
 export function getMessageIndex(key: string, id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    client.lrange(key, 0, -1, (error, results) => {
+    lRangeAsync(key, 0, -1, (error: any, results: any[]) => {
       if (!!error) {
         reject(error);
       } else {
-        const index = results.findIndex((result) => JSON.parse(result).id === id);
+        const index = results.findIndex((result: string) => JSON.parse(result).id === id);
         resolve(index);
       }
     });
   });
 }
 
+
 export function deleteMessage(key: string, index: number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    client.multi().lset(key, index, '__deleted__').lrem(key, 0, '__deleted__').exec((error) => {
-      if (!!error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
+  return client.multi().lSet(key, index, '__deleted__').lRem(key, 0, '__deleted__').exec().then(() => {
+    return;
+  }).catch((error: any) => {
+    return Promise.reject(error);
   });
 }
 
@@ -97,9 +84,9 @@ export function encryptMailbox(mailbox: string): string {
   return `D-${encryptedNum.toString(36)}`;
 }
 
-export async function listHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const ip = "" + event.requestContext.identity.sourceIp;
-  const mailbox = (event.pathParameters || {})["name"];
+export async function listHandler(req: any, res: any): Promise<any> {
+  const ip = req.ip;  // Use req.ip for client IP in Express
+  const mailbox = req.params.name;  // Use req.params for path parameters
   return ratelimit(ip, client).then(() => {
     console.log(`client ${ip} requesting mailbox ${mailbox}`);
     return getInbox(mailbox);
@@ -123,12 +110,12 @@ export async function listHandler(event: APIGatewayProxyEvent): Promise<APIGatew
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({error: reason})
+      body: JSON.stringify({ error: reason })
     };
   });
 }
 
-export async function messageHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+export async function messageHandler(event: any): Promise<any> {
   const ip = "" + event.requestContext.identity.sourceIp;
   return ratelimit(ip, client).then(() => {
     const mailbox = (event.pathParameters || {})["name"];
@@ -152,12 +139,12 @@ export async function messageHandler(event: APIGatewayProxyEvent): Promise<APIGa
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({error: reason})
+      body: JSON.stringify({ error: reason })
     };
   });
 }
 
-export async function deleteHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+export async function deleteHandler(event: any): Promise<any> {
   const ip = "" + event.requestContext.identity.sourceIp;
   return ratelimit(ip, client).then(() => {
     const mailbox = (event.pathParameters || {})["name"];
@@ -171,7 +158,7 @@ export async function deleteHandler(event: APIGatewayProxyEvent): Promise<APIGat
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({deleted: deleted})
+      body: JSON.stringify({ deleted: deleted })
     };
   }, (reason) => {
     console.log(`error for ${ip} : ${reason}`);
@@ -181,7 +168,7 @@ export async function deleteHandler(event: APIGatewayProxyEvent): Promise<APIGat
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({error: reason})
+      body: JSON.stringify({ error: reason })
     };
   });
 }

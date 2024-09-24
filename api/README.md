@@ -1,1 +1,1 @@
-Lambda API for Maildrop.
+# GlobPanel-Server

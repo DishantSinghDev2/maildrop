@@ -1,11 +1,11 @@
-import {RedisClient} from "redis";
+
 
 const RATELIMIT: number = parseInt(process.env.RATELIMIT || "10");
 
-export default async function ratelimit(ip: string, client: RedisClient): Promise<void> {
+export default async function ratelimit(ip: string, client: any): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const key = `lambdalimit:${ip}`;
-    client.hgetall(key, (error, result) => {
+    client.hGetAll(key, (error: any, result: { tokens: string; }) => {
       if (error) {
         reject(JSON.stringify(error));
       } else {
@@ -13,14 +13,14 @@ export default async function ratelimit(ip: string, client: RedisClient): Promis
           let tokens = parseInt(result.tokens) - 1;
           if (tokens < 0) {
             // A race condition can lead to the key never expiring; check for that
-            client.ttl(key, (_error, result) => {
+            client.ttl(key, (_error: any, result: number) => {
               if (result === -1) {
                 client.expire(key, 1);
               }
             });
             reject("rate limited");
           } else {
-            client.ttl(key, (_error, result) => {
+            client.ttl(key, (_error: any, result: number) => {
               if (result === -1) {
                 client.expire(key, 1);
               }

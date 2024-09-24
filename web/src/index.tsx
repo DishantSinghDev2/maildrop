@@ -28,7 +28,7 @@ if (process.env.REACT_APP_GA) {
 function AppRouter() {
   return (
     <Router history={history}>
-      <ScrollToTop location={history.location}>
+      <ScrollToTop>
         <Route path="/" exact component={Home}/>
         <Route path="/how-it-works" exact component={HowItWorks}/>
         <Route path="/contact-us" exact component={ContactUs}/>
