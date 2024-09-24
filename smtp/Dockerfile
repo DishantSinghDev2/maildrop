@@ -28,7 +28,7 @@ COPY stop-supervisor.sh /maildrop/
 RUN chmod a+rx /maildrop/entrypoint.sh /maildrop/stop-supervisor.sh
 
 # Expose necessary ports
-EXPOSE 465/tcp 8081/tcp
+EXPOSE 25/tcp 8081/tcp
 
 # Set working directory
 WORKDIR /maildrop
