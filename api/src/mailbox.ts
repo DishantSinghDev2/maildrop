@@ -3,19 +3,27 @@ import bigInt from "big-integer";
 import ratelimit from "./ratelimit";
 import { ParsedMail, simpleParser } from "mailparser";
 import { promisify } from "util";
+import { parse } from "path";
 
 const ALTINBOX_MOD: number = parseInt(process.env.ALTINBOX_MOD || "20190422");
 
-const lRangeAsync = promisify(client.lRange).bind(client);
-
 export function getInbox(mailbox: string): Promise<Array<object>> {
-  return lRangeAsync(`mailbox:${mailbox}`, 0, -1).then((results: any[]) => {
+  console.log(`getting mailbox ${mailbox}`);
+  return client.lRange(`mailbox:${mailbox}`, 0, -1).then((results: any[]) => {
+    if (!results || results.length === 0) {
+      console.log(`No mailbox found: ${mailbox}`);
+    }
+    console.log(`Found ${results.length} messages in mailbox ${mailbox}`);
     return results.map((result: string) => JSON.parse(result));
+  }).catch((error: any) => {
+    console.error('Error during Redis lRange:', error);
+    throw new Error('Failed to retrieve messages from Redis');
   });
+
 }
 
 export function getMessage(mailbox: string, id: string): Promise<object> {
-  return lRangeAsync(`mailbox:${mailbox}:body`, 0, -1).then((results: any[]) => {
+  return client.lRange(`mailbox:${mailbox}:body`, 0, -1).then((results: any[]) => {
     const message = results.find((result: string) => JSON.parse(result).id === id) || "{}";
     return JSON.parse(message);
   });
@@ -41,13 +49,10 @@ export function parseHtml(message: any): Promise<object> {
 
 export function getMessageIndex(key: string, id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    lRangeAsync(key, 0, -1, (error: any, results: any[]) => {
-      if (!!error) {
-        reject(error);
-      } else {
-        const index = results.findIndex((result: string) => JSON.parse(result).id === id);
-        resolve(index);
-      }
+    client.lRange(key, 0, -1).then((results: any[]) => {
+
+      const index = results.findIndex((result: string) => JSON.parse(result).id === id);
+      resolve(index);
     });
   });
 }
@@ -83,90 +88,213 @@ export function encryptMailbox(mailbox: string): string {
 }
 
 export async function listHandler(req: any, res: any): Promise<any> {
-  const ip = req.ip;  // Use req.ip for client IP in Express
-  const mailbox = req.params.name;  // Use req.params for path parameters
-  return ratelimit(ip, client).then(() => {
+  const ip = req.ip;
+  const mailbox = req.params.name;  
+  try {
+    await ratelimit(ip);
     console.log(`client ${ip} requesting mailbox ${mailbox}`);
-    return getInbox(mailbox);
-  }).then((results) => {
-    return {
-      statusCode: 200,
+    const results = await getInbox(mailbox);
+    const encryptedMailbox = encryptMailbox(mailbox);
+    
+    // Constructing the response object
+    if (results.length > 0) {
+      const response = {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
+        body: JSON.stringify({
+          success: true,
+          message: "Mailbox retrieved successfully.",
+          data: results,
+          encryptedMailbox, // Return the encrypted mailbox identifier
+        }),
+      };
+      return res.status(200).set(response.headers).send(response.body);
+    } else {
+      const notFoundResponse = {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
+        body: JSON.stringify({
+          success: false,
+          message: "Mailbox not found.",
+          details: { mailbox: encryptedMailbox },
+        }),
+      };
+      return res.status(404).set(notFoundResponse.headers).send(notFoundResponse.body);
+    }
+  } catch (reason) {
+    console.log(`error for ${ip} : ${reason}`);
+    const errorResponse = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
       body: JSON.stringify({
-        altinbox: encryptMailbox(mailbox),
-        messages: results
-      })
+        success: false,
+        message: "An error occurred.",
+        errorDetails: reason,
+      }),
     };
-  }, (reason) => {
-    console.log(`error for ${ip} : ${reason}`);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': true,
-      },
-      body: JSON.stringify({ error: reason })
-    };
-  });
+    return res.status(500).set(errorResponse.headers).send(errorResponse.body);
+  }
 }
 
-export async function messageHandler(event: any): Promise<any> {
-  const ip = "" + event.requestContext.identity.sourceIp;
-  return ratelimit(ip, client).then(() => {
-    const mailbox = (event.pathParameters || {})["name"];
-    const id = (event.pathParameters || {})["id"];
+export async function messageHandler(req: any, res: any): Promise<any> {
+  const ip = req.ip;
+  const mailbox = req.params.name;
+  const id = req.params.id;  
+  try {
+    await ratelimit(ip);
     console.log(`client ${ip} requesting mailbox ${mailbox} id ${id}`);
-    return getMessage(mailbox, id);
-  }).then((results) => parseHtml(results)).then((results) => {
-    return {
-      statusCode: 200,
+    const results = await getMessage(mailbox, id);
+
+    const parsedMessage = await parseHtml(results);
+    const encryptedMailbox = encryptMailbox(mailbox);
+    console.log(parsedMessage);
+    
+    // Check if the message exists
+    if (Object.keys(parsedMessage).length === 0) {
+      const notFoundResponse = {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
+        body: JSON.stringify({
+          success: false,
+          message: "Message not found.",
+          details: { mailbox: encryptedMailbox, id },
+        }),
+      };
+      return res.status(404).set(notFoundResponse.headers).send(notFoundResponse.body);
+    }
+
+    
+    const response = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify(results)
+      body: JSON.stringify({
+        success: true,
+        message: "Message retrieved successfully.",
+        data: parsedMessage,
+        encryptedMailbox, // Return the encrypted mailbox identifier
+      }),
     };
-  }, (reason) => {
+
+    return res.status(200).set(response.headers).send(response.body);
+  } catch (reason) {
     console.log(`error for ${ip} : ${reason}`);
-    return {
-      statusCode: 500,
+    const errorResponse = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({ error: reason })
+      body: JSON.stringify({
+        success: false,
+        message: "An error occurred while retrieving the message.",
+        errorDetails: reason,
+      }),
     };
-  });
+    return res.status(500).set(errorResponse.headers).send(errorResponse.body);
+  }
 }
 
-export async function deleteHandler(event: any): Promise<any> {
-  const ip = "" + event.requestContext.identity.sourceIp;
-  return ratelimit(ip, client).then(() => {
-    const mailbox = (event.pathParameters || {})["name"];
-    const id = (event.pathParameters || {})["id"];
+export async function deleteHandler(req: any, res: any): Promise<any> {
+  const ip = req.ip;
+  const mailbox = req.params.name;
+  const id = req.params.id;  
+  try {
+    await ratelimit(ip);
     console.log(`client ${ip} deleting mailbox ${mailbox} id ${id}`);
-    return deleteBoth(mailbox, id);
-  }).then((deleted) => {
-    return {
-      statusCode: 200,
+    const deleted = await deleteBoth(mailbox, id);
+    
+    // Check if the message was deleted successfully
+    if (!deleted) {
+      const encryptedMailbox = encryptMailbox(mailbox);
+      const notFoundResponse = {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': true,
+        },
+        body: JSON.stringify({
+          success: false,
+          message: "Message not found or failed to delete.",
+          details: { mailbox: encryptedMailbox, id },
+        }),
+      };
+      return res.status(404).set(notFoundResponse.headers).send(notFoundResponse.body);
+    }
+
+    const response = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({ deleted: deleted })
+      body: JSON.stringify({
+        success: true,
+        message: "Message deleted successfully.",
+        data: { deleted },
+        mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
+      }),
     };
-  }, (reason) => {
+
+    return res.status(200).set(response.headers).send(response.body);
+  } catch (reason) {
     console.log(`error for ${ip} : ${reason}`);
-    return {
-      statusCode: 500,
+    const errorResponse = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({ error: reason })
+      body: JSON.stringify({
+        success: false,
+        message: "Failed to delete message.",
+        errorDetails: reason,
+        mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
+      }),
     };
-  });
+    return res.status(500).set(errorResponse.headers).send(errorResponse.body);
+  }
 }
+
+
+// export async function addMessageToMailbox(req: any, res: any): Promise<any> {
+//   const mailbox = req.params.mailbox;
+//   const message = req.body; // Assuming message is sent in request body
+//   return addMessage(mailbox, message).then(() => {
+//     return {
+//       statusCode: 201,
+//       headers: {
+//         'Access-Control-Allow-Origin': '*',
+//         'Access-Control-Allow-Credentials': true,
+//       },
+//       body: JSON.stringify({
+//         success: true,
+//         message: "Message added successfully to the mailbox.",
+//         mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
+//       })
+//     };
+//   }, (reason) => {
+//     console.log(`error adding message to ${mailbox}: ${reason}`);
+//     return {
+//       statusCode: 500,
+//       headers: {
+//         'Access-Control-Allow-Origin': '*',
+//         'Access-Control-Allow-Credentials': true,
+//       },
+//       body: JSON.stringify({
+//         success: false,
+//         message: "Failed to add message.",
+//         errorDetails: reason,
+//         mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
+//       })
+//     };
+//   });
+// }
+
+// // Other functions...
+

@@ -1,25 +1,24 @@
-import Redis, {RedisClient} from "redis";
-import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
+import client from "./redis";
 import ratelimit from "./ratelimit";
 
-const REDIS: string = process.env.REDIS || "127.0.0.1:6379";
-const client: RedisClient = Redis.createClient({url: `redis://${REDIS}`});
 
 export function getStats(key: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    client.get(`stats:${key}`, (error, results) => {
-      if (!!error) {
-        reject(error);
+    client.get(`stats:${key}`).then((results: string | null) => {
+      if (results === null) {
+        resolve(0);
       } else {
         resolve(parseInt(results));
       }
-    })
+    }).catch((error: any) => {
+      reject(error);
+    });
   });
 }
 
-export async function statsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+export async function statsHandler(event: any): Promise<any> {
   const ip = "" + event.requestContext.identity.sourceIp;
-  return ratelimit(ip, client).then(() => {
+  return ratelimit(ip).then(() => {
     return Promise.all([getStats("queued"), getStats("denied")]);
   }).then((results) => {
     return {"queued": results[0], "denied": results[1]};
