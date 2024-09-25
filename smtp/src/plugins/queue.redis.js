@@ -1,22 +1,11 @@
 const shortid = require('shortid');
+const dateformat = await import('dateformat').then(module => module.default);
 const simpleParser = require('mailparser').simpleParser;
-
-let dateformat; // Declare dateformat outside the functions
-
-async function loadDependencies() {
-  // Dynamically import the dateformat module
-  dateformat = (await import('dateformat')).default;
-}
 
 exports.register = function() {
   const plugin = this;
   plugin.load_ini();
   plugin.register_hook('queue', 'save_to_redis');
-
-  // Load the dateformat dependency when the plugin is registered
-  loadDependencies().catch(err => {
-    plugin.logerror("Error loading dependencies: " + err);
-  });
 };
 
 exports.load_ini = function() {
@@ -49,13 +38,8 @@ exports.save_to_redis = function(next, connection) {
     stream.on("end", () => {
       body = Buffer.concat(chunks).toString();
       plugin.logdebug("have body: " + body);
-      simpleParser(body, async (error, parsed) => {
-        if (error) {
-          plugin.logerror("Error parsing email: " + error);
-          return next(OK);
-        }
-
-        for (const recipient of recipients) {
+      simpleParser(body, (error, parsed) => {
+        recipients.forEach((recipient) => {
           const destination = recipient.user.toLowerCase();
           const key = `mailbox:${destination}`;
           const message = {
@@ -63,10 +47,15 @@ exports.save_to_redis = function(next, connection) {
             from: parsed.from.text,
             to: destination,
             subject: parsed.headers.get('subject'),
-            date: `${dateformat(new Date(), "isoDateTime")}`.replace("+0000", "Z")
+            date: `${dateformat(new Date(), "isoDateTime")}`.replace("+0000","Z")
           };
-          let html = parsed.html || parsed.textAsHtml;
-          const messageBody = Object.assign({}, message, { body: body, html: html });
+          let html;
+          if (!!parsed.html) {
+            html = parsed.html;
+          } else {
+            html = parsed.textAsHtml;
+          }
+          const messageBody = Object.assign({}, message, {body: body, html: html});
           plugin.logwarn("Saving message from " + connection.transaction.mail_from.original + " to " + destination);
           redis.lpush(key, JSON.stringify(message));
           redis.lpush(key + ":body", JSON.stringify(messageBody));
@@ -74,7 +63,7 @@ exports.save_to_redis = function(next, connection) {
           redis.ltrim(key + ":body", 0, mailbox_size);
           redis.expire(key, mailbox_ttl);
           redis.expire(key + ":body", mailbox_ttl);
-        }
+        });
         next(OK);
       });
     });
