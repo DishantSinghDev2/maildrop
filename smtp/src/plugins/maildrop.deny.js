@@ -5,6 +5,13 @@ exports.register = function () {
 
 exports.rcpt = function(next, connection, params) {
   const plugin = this;
+
+  // Check if params is defined and has at least one element
+  if (!params || params.length === 0) {
+    plugin.logwarn('No recipient provided');
+    return next(DENY, "No recipient provided");
+  }
+
   const recipient = params[0]; // Get the recipient address
 
   // Allow emails to kodewith.me domain
@@ -13,5 +20,5 @@ exports.rcpt = function(next, connection, params) {
   }
 
   plugin.logwarn(`exports.rcpt ${JSON.stringify(params)}`);
-  next(DENY, "Testing");
+  next(DENY, "NOT ALLOWED");
 };
