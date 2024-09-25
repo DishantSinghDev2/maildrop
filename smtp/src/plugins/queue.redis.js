@@ -1,5 +1,5 @@
 const shortid = require('shortid');
-const dateformat = await import('dateformat').then(module => module.default);
+const dateformat = import('dateformat');
 const simpleParser = require('mailparser').simpleParser;
 
 exports.register = function() {
