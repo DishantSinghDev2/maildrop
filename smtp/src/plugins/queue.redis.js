@@ -1,6 +1,6 @@
-import { simpleParser } from 'mailparser';
-import dateformat from 'dateformat';
-import shortid from 'shortid';
+const shortid = require('shortid');
+const dateformat = require('dateformat');
+const simpleParser = require('mailparser').simpleParser;
 
 exports.register = function() {
   const plugin = this;
