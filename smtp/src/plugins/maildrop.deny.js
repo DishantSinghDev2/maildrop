@@ -12,14 +12,13 @@ exports.rcpt = function(next, connection, params) {
     return next(DENY, "No recipient provided");
   }
 
-  const recipient = params[0]; // Get the recipient address
-  plugin.logwarn(`Recipient: ${recipient}, params: ${params["original_host"]}`);
+  const recipient_host = params["original_host"]; // Get the recipient address
 
   // Allow emails to kodewith.me domain
-  if (recipient && recipient.endsWith('@kodewith.me')) {
+  if (recipient_host && recipient_host.endsWith('@kodewith.me')) {
     return next(); // Allow this recipient
   }
 
   plugin.logwarn(`exports.rcpt ${JSON.stringify(params)}`);
-  next(DENY, "NOT ALLOWED");
+  return next(DENY, "NOT ALLOWED");
 };
