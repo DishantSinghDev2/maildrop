@@ -47,7 +47,7 @@ exports.save_to_redis = function(next, connection) {
             from: parsed.from.text,
             to: destination,
             subject: parsed.headers.get('subject'),
-            date: `${format(new Date(), "isoDateTime")}`.replace("+0000","Z")
+            date: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'") // Correctly formatted date
           };
           let html;
           if (!!parsed.html) {
