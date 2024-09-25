@@ -27,7 +27,7 @@ access
 asn
 fcrdns
 # block mails from known bad hosts (see config/dnsbl.zones for the DNS zones queried)
-dnsbl
+dns-list
 
 # HELO
 early_talker
@@ -46,7 +46,7 @@ helo.checks
 # Only accept mail where the MAIL FROM domain is resolvable to an MX record
 mail_from.is_resolvable
 spf
-backscatterer
+dns-list
 greylist
 
 # tarpit
@@ -63,13 +63,13 @@ rcpt_to.in_host_list
 # maildrop.deny
 bounce
 # Check mail headers are valid
-data.headers
+headers
 data.uribl
 attachment
 #clamd
 #spamassassin
 # dkim_sign
-dkim_verify
+dkim
 limit
 altinbox
 
