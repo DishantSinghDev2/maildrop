@@ -1,4 +1,4 @@
-import bigInt from 'big-integer';
+const bigInt = require('big-integer');
 
 exports.register = function () {
   const plugin = this;
