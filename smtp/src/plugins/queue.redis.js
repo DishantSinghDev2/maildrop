@@ -1,5 +1,5 @@
 const shortid = require('shortid');
-const dateformat = require('dateformat');
+import { format } from 'date-fns';
 const simpleParser = require('mailparser').simpleParser;
 
 exports.register = function() {
@@ -47,7 +47,7 @@ exports.save_to_redis = function(next, connection) {
             from: parsed.from.text,
             to: destination,
             subject: parsed.headers.get('subject'),
-            date: `${dateformat(new Date(), "isoDateTime")}`.replace("+0000","Z")
+            date: `${format(new Date(), "isoDateTime")}`.replace("+0000","Z")
           };
           let html;
           if (!!parsed.html) {
