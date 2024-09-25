@@ -1,6 +1,7 @@
 exports.register = function () {
   const plugin = this;
-  plugin.register_hook('queue', 'rcpt');
+  plugin.register_hook('rcpt','rcpt');
+  plugin.register_hook('rcpt_ok','rcpt');
 };
 
 exports.rcpt = function(next, connection, params) {
