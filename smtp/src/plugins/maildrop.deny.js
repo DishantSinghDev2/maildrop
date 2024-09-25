@@ -5,6 +5,7 @@ exports.register = function () {
 
 exports.rcpt = function(next, connection, params) {
   const plugin = this;
+  plugin.logwarn('params',params, "connection",connection)
 
   // Check if params is defined and has at least one element
   if (!params || params.length === 0) {
