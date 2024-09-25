@@ -57,10 +57,10 @@ exports.save_to_redis = function(next, connection) {
           }
           const messageBody = Object.assign({}, message, {body: body, html: html});
           plugin.logwarn("Saving message from " + connection.transaction.mail_from.original + " to " + destination);
-          redis.lpush(key, JSON.stringify(message));
-          redis.lpush(key + ":body", JSON.stringify(messageBody));
-          redis.ltrim(key, 0, mailbox_size);
-          redis.ltrim(key + ":body", 0, mailbox_size);
+          redis.lPush(key, JSON.stringify(message));
+          redis.lPush(key + ":body", JSON.stringify(messageBody));
+          redis.lTrim(key, 0, mailbox_size);
+          redis.lTrim(key + ":body", 0, mailbox_size);
           redis.expire(key, mailbox_ttl);
           redis.expire(key + ":body", mailbox_ttl);
         });
