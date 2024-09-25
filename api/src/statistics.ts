@@ -16,30 +16,45 @@ export function getStats(key: string): Promise<number> {
   });
 }
 
-export async function statsHandler(event: any): Promise<any> {
-  const ip = "" + event.requestContext.identity.sourceIp;
-  return ratelimit(ip).then(() => {
-    return Promise.all([getStats("queued"), getStats("denied")]);
-  }).then((results) => {
-    return {"queued": results[0], "denied": results[1]};
-  }).then((results) => {
-    return {
-      statusCode: 200,
+export async function statsHandler(req: any, res: any): Promise<any> {
+  const ip = req.ip; // Get the client's IP address
+  try {
+    await ratelimit(ip); // Rate limiting
+    console.log(`Client ${ip} requesting stats`);
+
+    // Fetching queued and denied stats
+    const [queued, denied] = await Promise.all([getStats("queued"), getStats("denied")]);
+
+    // Constructing the response object
+    const response = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify(results)
+      body: JSON.stringify({
+        success: true,
+        message: "Stats retrieved successfully.",
+        data: {
+          queued,
+          denied,
+        },
+      }),
     };
-  }, (reason) => {
-    console.log(`error for ${ip} : ${reason}`);
-    return {
-      statusCode: 500,
+
+    return res.status(200).set(response.headers).send(response.body);
+  } catch (reason) {
+    console.log(`Error for ${ip}:`, reason);
+    const errorResponse = {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
       },
-      body: JSON.stringify({error: reason})
+      body: JSON.stringify({
+        success: false,
+        message: "An error occurred while retrieving stats.",
+        errorDetails: reason,
+      }),
     };
-  });
+    return res.status(500).set(errorResponse.headers).send(errorResponse.body);
+  }
 }

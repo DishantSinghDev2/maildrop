@@ -1,5 +1,6 @@
 import express from 'express';
 import { listHandler, messageHandler, deleteHandler } from './mailbox'; // Adjust the import based on your file structure
+import { statsHandler } from './statistics';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,7 @@ app.use(express.json()); // For parsing application/json
 app.get('/mailbox/:name', listHandler);
 app.get('/mailbox/:name/message/:id', messageHandler);
 app.delete('/mailbox/:name/message/:id', deleteHandler);
+app.get('/health', statsHandler);
 
 
 // Start the server
