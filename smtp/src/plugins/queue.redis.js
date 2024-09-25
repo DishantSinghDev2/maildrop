@@ -1,5 +1,5 @@
 const shortid = require('shortid');
-import { format } from 'date-fns';
+const format = require('date-fns').format;
 const simpleParser = require('mailparser').simpleParser;
 
 exports.register = function() {
