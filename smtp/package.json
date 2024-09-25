@@ -10,13 +10,12 @@
   "author": "Dishant Singh <dishant@singh.email>",
   "repository": {},
   "license": "ISC",
-  "devDependencies": {},
   "dependencies": {
-    "Haraka": "^2.8.25",
-    "big-integer": "^1.6.48",
-    "dateformat": "^3.0.3",
+    "big-integer": "^1.6.52",
+    "dateformat": "^5.0.3",
     "express": "^4.17.1",
-    "mailparser": "^2.7.7",
-    "shortid": "^2.2.15"
+    "Haraka": "^3.0.4",
+    "mailparser": "^3.7.1",
+    "shortid": "^2.2.16"
   }
 }
