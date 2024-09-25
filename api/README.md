@@ -1,1 +1,1 @@
-# GlobPanel-Server
+# Maildrop-Server
