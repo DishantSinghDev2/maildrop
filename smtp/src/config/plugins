@@ -60,7 +60,7 @@ rcpt_to.in_host_list
 #rcpt_to.routes
 
 # DATA
-# maildrop.deny
+maildrop.deny
 bounce
 # Check mail headers are valid
 headers
