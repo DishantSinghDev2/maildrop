@@ -27,22 +27,35 @@ export async function statsHandler(req: any, res: any): Promise<any> {
 
     // Constructing the response object
     const response = {
-      success: true,
-      message: "Stats retrieved successfully.",
-      data: {
-        queued,
-        denied,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
       },
+      body: {
+        success: true,
+        message: "Stats retrieved successfully.",
+        data: {
+          queued,
+          denied,
+        },
+      }
     };
 
-    return res.status(200).json(response); // Use res.json() to send the response
+    return res.status(200).set(response.headers).json(response.body);
   } catch (reason) {
-    console.log(`Error for ${ip}:`, reason);
+    console.log(`Error for ${ip}:, reason`);
     const errorResponse = {
-      success: false,
-      message: "An error occurred while retrieving stats.",
-      errorDetails: reason,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+      },
+      body: JSON.stringify({
+        success: false,
+        message: "An error occurred while retrieving stats.",
+        errorDetails: reason,
+      }),
     };
-    return res.status(500).json(errorResponse); // Use res.json() for error response as well
+    return res.status(500).set(errorResponse.headers).send(errorResponse.body);
   }
 }
+
