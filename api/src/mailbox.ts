@@ -97,7 +97,6 @@ export async function listHandler(req: any, res: any): Promise<any> {
     const encryptedMailbox = encryptMailbox(mailbox);
     
     // Constructing the response object
-    if (results.length > 0) {
       const response = {
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -111,20 +110,6 @@ export async function listHandler(req: any, res: any): Promise<any> {
         }),
       };
       return res.status(200).set(response.headers).send(response.body);
-    } else {
-      const notFoundResponse = {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Credentials': true,
-        },
-        body: JSON.stringify({
-          success: false,
-          message: "Mailbox not found.",
-          details: { mailbox: encryptedMailbox },
-        }),
-      };
-      return res.status(404).set(notFoundResponse.headers).send(notFoundResponse.body);
-    }
   } catch (reason) {
     console.log(`error for ${ip} : ${reason}`);
     const errorResponse = {
@@ -260,41 +245,4 @@ export async function deleteHandler(req: any, res: any): Promise<any> {
     return res.status(500).set(errorResponse.headers).send(errorResponse.body);
   }
 }
-
-
-// export async function addMessageToMailbox(req: any, res: any): Promise<any> {
-//   const mailbox = req.params.mailbox;
-//   const message = req.body; // Assuming message is sent in request body
-//   return addMessage(mailbox, message).then(() => {
-//     return {
-//       statusCode: 201,
-//       headers: {
-//         'Access-Control-Allow-Origin': '*',
-//         'Access-Control-Allow-Credentials': true,
-//       },
-//       body: JSON.stringify({
-//         success: true,
-//         message: "Message added successfully to the mailbox.",
-//         mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
-//       })
-//     };
-//   }, (reason) => {
-//     console.log(`error adding message to ${mailbox}: ${reason}`);
-//     return {
-//       statusCode: 500,
-//       headers: {
-//         'Access-Control-Allow-Origin': '*',
-//         'Access-Control-Allow-Credentials': true,
-//       },
-//       body: JSON.stringify({
-//         success: false,
-//         message: "Failed to add message.",
-//         errorDetails: reason,
-//         mailbox: encryptMailbox(mailbox), // Include encrypted mailbox
-//       })
-//     };
-//   });
-// }
-
-// // Other functions...
 

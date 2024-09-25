@@ -6,8 +6,6 @@ exports.register = function () {
 
 exports.rcpt = function(next, connection, params) {
   const plugin = this;
-  plugin.logwarn('params',params, "connection",connection)
-
   // Check if params is defined and has at least one element
   if (!params || params.length === 0) {
     plugin.logwarn('No recipient provided');
@@ -15,6 +13,7 @@ exports.rcpt = function(next, connection, params) {
   }
 
   const recipient = params[0]; // Get the recipient address
+  plugin.logwarn(`Recipient: ${recipient}, params: ${params["original_host"]}`);
 
   // Allow emails to kodewith.me domain
   if (recipient && recipient.endsWith('@kodewith.me')) {
