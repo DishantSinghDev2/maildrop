@@ -153,7 +153,7 @@ export async function messageHandler(req: any, res: any): Promise<any> {
           details: { mailbox: encryptedMailbox, id },
         },
       };
-      return res.status(404).set(notFoundResponse.headers).json(notFoundResponse.body);
+      return res.status(200).set(notFoundResponse.headers).json(notFoundResponse.body);
     }
 
     
@@ -211,7 +211,7 @@ export async function deleteHandler(req: any, res: any): Promise<any> {
           details: { mailbox: encryptedMailbox, id },
         },
       };
-      return res.status(404).set(notFoundResponse.headers).json(notFoundResponse.body);
+      return res.status(200).set(notFoundResponse.headers).json(notFoundResponse.body);
     }
 
     const response = {
